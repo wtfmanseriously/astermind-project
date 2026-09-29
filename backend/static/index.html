@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsterMind AI Console</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { 
+            background-color: #0f172a; /* Deep blue background from image */
+            color: #f8fafc; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        /* Sidebar layout */
+        #app-container { display: flex; height: 100vh; width: 100vw; }
+        
+        #sidebar {
+            width: 250px;
+            background-color: #0f172a;
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .sidebar-item {
+            padding: 0.75rem 1.5rem;
+            color: #cbd5e1;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar-item:hover, .sidebar-item.active {
+            background-color: #1e293b;
+            color: #fff;
+        }
+        
+        /* Main content area */
+        #main-view {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #0b1120;
+            overflow-y: auto;
+        }
+        
+        /* Top header bar */
+        #topbar {
+            height: 60px;
+            background-color: #0f172a;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 1.5rem;
+            gap: 1rem;
+        }
+        
+        .stat-badge {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* Case details specific styling */
+        .case-header {
+            padding: 2rem;
+            border-bottom: 1px solid #1e293b;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #1e293b;
+            padding: 0 2rem;
+            background-color: #0f172a;
+        }
+        
+        .tab {
+            padding: 1rem 1.5rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tab.active {
+            color: #38bdf8;
+            border-bottom-color: #38bdf8;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 2rem;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Evidence Table */
+        .evidence-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .evidence-table th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #334155;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .evidence-table td {
+            padding: 1rem 0.75rem;
+            border-bottom: 1px solid #1e293b;
+            font-size: 0.875rem;
+            color: #38bdf8;
+        }
+        
+        .evidence-table td:last-child {
+            color: #f8fafc;
+            text-align: right;
+        }
+        
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .label {
+            color: #64748b;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        #casesList { max-height: calc(100vh - 60px); overflow-y: auto; padding: 1rem; }
+        .case-card { background: #1e293b; padding: 1rem; border-radius: 4px; margin-bottom: 1rem; cursor:pointer;}
+        .case-card:hover { background: #334155; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div class="p-4 flex justify-center items-center border-b border-slate-800 mb-4">
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div class="w-3 h-3 bg-white rounded-full"></div>
+                </div>
+            </div>
+            
+            <div class="text-xs font-semibold text-slate-500 uppercase px-6 mb-2">SOC</div>
+            <div class="sidebar-item">⊞ OVERWATCH</div>
+            <div class="sidebar-item">⚡ SOC Dashboard</div>
+            <div class="sidebar-item active">▤ SIEM</div>
+            <div class="sidebar-item" onclick="showCasesList()">⊟ Cases</div>
+            <div class="sidebar-item">⚡ Anomalies</div>
+            
+            <div class="text-xs font-semibold text-slate-500 uppercase px-6 mt-6 mb-2">Platform Settings</div>
+        </div>
+        
+        <!-- Main Area -->
+        <div id="main-view">
+            <!-- Topbar -->
+            <div id="topbar">
+                <div class="stat-badge text-red-400 border-red-900 bg-red-900/20">GUARDED 45</div>
+                <div class="stat-badge">C 1</div>
+                <div class="stat-badge text-yellow-500">H 230</div>
+                <div class="stat-badge">⚑ 24</div>
+                <div class="stat-badge text-green-400">● SENSOR</div>
+            </div>
+            
+            <!-- List View (Hidden by default) -->
+            <div id="casesListView" class="hidden h-full flex flex-col">
+                 <h2 class="text-xl font-bold p-4 border-b border-slate-800">All Cases</h2>
+                 <div id="casesList"></div>
+            </div>
+
+            <!-- Detail View -->
+            <div id="caseDetailView" class="h-full flex flex-col hidden">
+                <!-- Header Info -->
+                <div class="case-header flex flex-col gap-6">
+                    <div class="flex items-center gap-4">
+                        <button class="bg-slate-800 hover:bg-slate-700 p-2 rounded" onclick="showCasesList()">←</button>
+                        <h1 id="cdTitle" class="text-2xl font-bold">1003860: Behavioral Deviation</h1>
+                        <div class="flex gap-2 ml-4">
+                            <span class="px-2 py-1 bg-slate-800 rounded text-xs">Print</span>
+                            <span class="px-2 py-1 bg-slate-800 rounded text-xs">Geo Map</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-layout">
+                        <div class="label">CASE</div>
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div id="cdId" class="font-bold text-lg mb-1">1003860</div>
+                                    <div class="text-slate-300">
+                                        <span id="cdVerdict" class="font-bold text-white">Held.</span> 
+                                        Waiting on further evidence.
+                                    </div>
+                                    <div class="text-slate-500 text-sm mt-1">Opened on a medium signal, not on a behavioural deviation — no baseline was consulted.</div>
+                                </div>
+                                <div class="px-3 py-1 border border-yellow-600 text-yellow-500 rounded-full text-sm font-bold bg-yellow-900/20">Medium</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-layout">
+                        <div class="label">WHAT</div>
+                        <div>
+                            <div id="cdEvidenceSummary" class="text-slate-200 mb-2">casey.morgan16 performed Outlook Mobile from 2001:db8::a. It failed.</div>
+                            <div class="text-slate-400 text-sm">
+                                Detective's read: <span class="text-slate-300">Likely: behavioral deviation (50 co-occurring anomalies in window) — observed:</span> <span id="cdReasoningPreview" class="font-mono text-xs bg-slate-800 p-1 rounded"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-layout">
+                        <div class="label">ACTIONS</div>
+                        <div class="flex gap-2 text-sm">
+                            <button class="px-3 py-1 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700">Mark as noise</button>
+                            <button class="px-3 py-1 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700">Re-investigate</button>
+                            <button class="px-3 py-1 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700">Dismiss</button>
+                            <button class="px-3 py-1 bg-slate-800 border border-slate-700 rounded hover:bg-slate-700" onclick="verifyAuditChain()">Verify Audit</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('summary')">Summary</div>
+                    <div class="tab" onclick="switchTab('evidence')">Evidence</div>
+                    <div class="tab" onclick="switchTab('reasoning')">Reasoning</div>
+                    <div class="tab" onclick="switchTab('levey-jennings')">Levey-Jennings</div>
+                    <div class="tab" onclick="switchTab('audit')">Audit</div>
+                </div>
+                
+                <!-- Tab Contents -->
+                <div id="tab-summary" class="tab-content active flex-grow overflow-y-auto">
+                    <h3 class="text-blue-400 font-bold mb-4">Behavioral Deviation • Likely</h3>
+                    <p id="cdSummaryText" class="text-sm text-slate-300 leading-relaxed mb-6"></p>
+                    
+                    <h3 class="font-bold text-lg mb-2">Selected evidence</h3>
+                    <table class="evidence-table">
+                        <thead>
+                            <tr>
+                                <th>Indicator</th>
+                                <th style="text-align: right">Weight</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cdEvidenceTable">
+                            <!-- Filled via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="tab-evidence" class="tab-content">
+                    <h3 class="font-bold mb-4">Raw Evidence</h3>
+                    <pre id="cdRawEvidence" class="bg-slate-800 p-4 rounded text-sm text-slate-300 font-mono overflow-x-auto"></pre>
+                    
+                    <div id="mapContainer" class="mt-8 hidden">
+                        <h3 class="font-bold mb-4">Geo Origin</h3>
+                        <div id="map" style="height:300px; border-radius: 4px;"></div>
+                        <p id="mapInfo" class="mt-2 text-sm text-slate-400"></p>
+                    </div>
+                </div>
+                
+                <div id="tab-reasoning" class="tab-content">
+                    <h3 class="font-bold mb-4">The Detective's Reasoning Steps</h3>
+                    <div id="cdReasoningSteps" class="space-y-2 mb-8 text-sm text-slate-300"></div>
+                    
+                    <h3 class="font-bold mb-4 text-slate-400">Ruled Out Explanations</h3>
+                    <ul id="cdRuledOut" class="space-y-4"></ul>
+                </div>
+                
+                <div id="tab-levey-jennings" class="tab-content">
+                    <h3 class="font-bold mb-4">Control Chart</h3>
+                    <div class="bg-slate-800 p-4 rounded" style="height: 300px;">
+                        <canvas id="controlChart"></canvas>
+                    </div>
+                </div>
+                
+                <div id="tab-audit" class="tab-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold">Cryptographic Audit Chain</h3>
+                        <span id="auditStatus" class="px-3 py-1 rounded text-sm font-bold hidden"></span>
+                    </div>
+                    <p class="text-sm text-slate-400 mb-4">Every action is written into a cryptographic chain. Hash verified on server.</p>
+                    <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm" onclick="verifyAuditChain()">Run Integrity Check</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/app.js"></script>
+</body>
+</html>
