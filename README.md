@@ -1,4 +1,4 @@
-# Astermind AI Clone (Proof of Concept)
+# Astermind AI (Proof of Concept)
 
 This project is a full-stack proof-of-concept application inspired by Astermind.ai. It focuses on identifying, reasoning about, and auditing security anomalies using simulated network traffic data.
 
